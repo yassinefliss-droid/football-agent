@@ -1,3 +1,22 @@
+# Data
 pandas>=2.0
 requests>=2.31
-# Added in later steps: langchain, langchain-ollama, scikit-learn, streamlit
+python-dotenv>=1.0
+
+# LLM + agent
+langchain>=1.0
+langgraph>=1.0
+langchain-ollama>=1.0
+langchain-groq>=1.0
+
+# RAG: vector database + local embedding models (ONNX, no PyTorch needed)
+qdrant-client[fastembed]>=1.12
+
+# Serving
+fastapi>=0.110
+uvicorn[standard]>=0.29
+streamlit>=1.35
+
+# Tests
+pytest>=8.0
+httpx>=0.27

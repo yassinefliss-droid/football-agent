@@ -1,0 +1,16 @@
+# docker compose up --build   ->  UI on http://localhost:7860, API docs on http://localhost:8000/docs
+services:
+  ui:
+    build: .
+    image: football-agent
+    ports: ["7860:7860"]
+    env_file: .env
+    extra_hosts: ["host.docker.internal:host-gateway"]  # lets the container reach Ollama on your machine
+
+  api:
+    build: .
+    image: football-agent  # same image as ui (second build is instant thanks to the cache)
+    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    env_file: .env
+    extra_hosts: ["host.docker.internal:host-gateway"]
