@@ -14,7 +14,6 @@ An **LLM agent** that answers questions about 150 years of international footbal
 then citing its sources. Evaluated on a labelled question set, tested in CI, containerised
 and deployed.
 
-**🔗 Live demo:** `<your Hugging Face Space URL>`
 
 > "Who was the first African team to reach a World Cup semi-final, and what was their record in that tournament?"
 > → the agent searches Wikipedia (Morocco, 2022) **and** queries the database for Morocco's 2022 results.
