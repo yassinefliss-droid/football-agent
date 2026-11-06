@@ -1,19 +1,8 @@
----
-title: Football Analyst Agent
-emoji: ⚽
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_port: 7860
----
-
 # ⚽ Football Analyst Agent
 
 An **LLM agent** that answers questions about 150 years of international football by
 **writing SQL** on a statistics database and **searching Wikipedia with hybrid RAG**,
-then citing its sources. Evaluated on a labelled question set, tested in CI, containerised
-and deployed.
-
+then citing its sources. Evaluated on a labelled question set, unit-tested and containerised.
 
 > "Who was the first African team to reach a World Cup semi-final, and what was their record in that tournament?"
 > → the agent searches Wikipedia (Morocco, 2022) **and** queries the database for Morocco's 2022 results.
@@ -40,11 +29,21 @@ valid when the dataset is updated. Full report: [`eval/results.md`](eval/results
 
 | Metric | Result |
 |---|---|
-| Retrieval hit rate@5 — dense / BM25 / **hybrid** | `__` / `__` / `__` |
-| Answer accuracy — SQL questions | `__` |
-| Answer accuracy — RAG questions | `__` |
-| Correct tool routing | `__` |
-| Median latency (Groq, Llama 3.3 70B) | `__ s` |
+| Retrieval hit rate@5 (9 RAG questions) — dense / BM25 / **hybrid** | 89% / 100% / 100% |
+| Answer accuracy — SQL questions | 53% (8/15) |
+| Answer accuracy — RAG questions | 89% (8/9) |
+| Answer accuracy — all questions | 62% (16/26) |
+| Correct tool routing | 96% (25/26)* |
+| Median latency (Ollama `qwen2.5:7b`, local laptop) | 42 s |
+
+\* Routing counts a question as correct when the expected tool was called. The two mixed
+questions only called SQL: the host country came from the model's memory, not from a source.
+
+**Error analysis.** Most SQL failures come from tournament filtering: the model matches
+`LIKE '%World Cup%'`, which also counts qualifiers, despite a warning in the prompt. Other
+failures: counting only home matches, counting `'Draw'` as a winner, using `COUNT` instead of
+`SUM`. One RAG question was routed to SQL. With 26 questions the confidence interval is wide
+(62% overall ≈ 43–78% at 95%, Wilson), so these numbers show trends, not precise scores.
 
 ## Key design choices
 
@@ -52,11 +51,11 @@ valid when the dataset is updated. Full report: [`eval/results.md`](eval/results
 |---|---|
 | **Two tools instead of one** | Numbers must be exact → SQL. History and context are text → RAG. The LLM decides which to call (tool routing is measured). |
 | **SQL tool is read-only** | One SELECT only, database opened in read-only mode, row cap. An LLM writes the queries, so they are never trusted. |
-| **Errors returned to the agent** | SQL errors come back as text, so the agent fixes its own query (self-correction), with a hard limit of 15 steps. |
+| **Errors returned to the agent** | SQL errors come back as text, so the agent fixes its own query (self-correction), The agent graph is capped at 15 steps; the 3-retry rule is a prompt instruction. |
 | **Commented schema in the prompt** | The SQL comments written in `build_db.py` are what the LLM reads: better schema docs → better SQL. |
 | **Hybrid search (dense + BM25, RRF)** | Embeddings catch meaning; BM25 catches exact names and years ("Maracanazo", "1957"). |
 | **Configurable LLM** | Ollama locally (free, private), Groq in the cloud (fast, free tier): one environment variable. |
-| **Deterministic evaluation** | No LLM-as-judge: gold SQL values and keywords → free, reproducible, runs in CI. |
+| **Deterministic evaluation** | No LLM-as-judge: gold SQL values and keywords → free and reproducible. |
 
 ## Quick start (local, with Ollama)
 
@@ -83,18 +82,7 @@ python eval/run_eval.py                   # evaluation -> eval/results.md
 docker compose up --build    # UI on :7860, API on :8000
 ```
 
-## Deploy on Hugging Face Spaces (Docker, PRO plan)
-
-1. Create a Space at huggingface.co/new-space → SDK **Docker** (requires a PRO subscription).
-2. In the Space settings, add the secret `GROQ_API_KEY` and the variable `LLM_PROVIDER=groq`.
-3. Push this repository to the Space (the YAML header at the top of this README configures it):
-   ```bash
-   git remote add space https://huggingface.co/spaces/<username>/football-agent
-   git push space main
-   ```
-The image builds the database and the vector index during the build (~5–10 min the first time).
-
-## Free alternative: Streamlit Community Cloud
+## Deploy on Streamlit Community Cloud (free)
 
 1. Get a free Groq API key at console.groq.com/keys.
 2. Go to share.streamlit.io, sign in with GitHub and click **Create app**:
@@ -129,7 +117,11 @@ tests/           unit tests (fake LLM and fake embeddings)
 
 - The goalscorers dataset is incomplete for older matches, so some scorer totals differ from official records.
 - The database has no match stage (group, final...), so "who won the 2010 final" relies on RAG.
-- Next: a match-outcome prediction tool (Elo ratings + XGBoost), conversation memory, LLM-as-judge for open answers.
+- Evaluation: 26 questions and a single run; routing does not penalise extra tool calls; RAG answers are checked
+  with keywords, not for faithfulness to the cited passages.
+- Next: fix tournament filtering in the SQL tool (views or query checks rather than prompt rules), trajectory
+  metrics (tool calls, SQL errors, self-corrections), tracing with Langfuse, a larger test set with paraphrases,
+  comparison with a larger model (Groq, Llama 3.3 70B).
 
 ## Data
 
