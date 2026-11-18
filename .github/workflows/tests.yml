@@ -1,0 +1,27 @@
+# Runs the unit tests on every push and pull request.
+# The tests use a tiny SQLite database, fake embeddings and a scripted fake LLM,
+# so they need no API key, no Ollama and no data download: about 1 second of tests.
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"   # same version as the Dockerfile
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest -q
